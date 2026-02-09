@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
-import '../models/vente_model.dart';
-import '../models/depense_model.dart';
 import '../models/client_model.dart';
+import '../models/depense_model.dart';
+import '../models/vente_model.dart';
 import '../models/stats_model.dart';
 
 class ApiService {
@@ -344,6 +344,62 @@ class ApiService {
       return data;
     } else {
       throw Exception(data['error'] ?? 'Erreur lors du traitement de la commande');
+    }
+  }
+
+  // SUBSCRIPTION / ABONNEMENT
+
+  Future<Map<String, dynamic>> checkSubscriptionAccess() async {
+    final response = await http.get(
+      Uri.parse('${ApiConfig.baseUrl}/subscription/check'),
+      headers: _headers,
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      return data;
+    } else {
+      throw Exception(data['error'] ?? 'Erreur lors de la vérification');
+    }
+  }
+
+  Future<Map<String, dynamic>> getSubscriptionInfo() async {
+    final response = await http.get(
+      Uri.parse('${ApiConfig.baseUrl}/subscription/info'),
+      headers: _headers,
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      return data['data'];
+    } else {
+      throw Exception(data['error'] ?? 'Erreur lors de la récupération des infos');
+    }
+  }
+
+  Future<Map<String, dynamic>> activateSubscription({
+    required String plan,
+    required String paymentMethod,
+    required String phoneNumber,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${ApiConfig.baseUrl}/subscription/activate'),
+      headers: _headers,
+      body: jsonEncode({
+        'plan': plan,
+        'paymentMethod': paymentMethod,
+        'phoneNumber': phoneNumber,
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 201) {
+      return data;
+    } else {
+      throw Exception(data['error'] ?? 'Erreur lors de l\'activation');
     }
   }
 }
