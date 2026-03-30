@@ -1,10 +1,10 @@
 // lib/config/api_config.dart
 class ApiConfig {
   // À MODIFIER : URL de votre API déployée
-  //static const String baseUrl = 'http://10.0.2.2:3000/api';
+  static const String baseUrl = 'http://147.93.95.216:3002/api';
   
   // En production, utiliser :
-  static const String baseUrl = 'https://moncommerce-production.up.railway.app/api';
+  //static const String baseUrl = 'https://moncommerce-production.up.railway.app/api';
   
   // Endpoints
   static const String auth = '$baseUrl/auth';
