@@ -329,12 +329,15 @@ class ApiService {
 
   // IA - COMMANDE VOCALE
 
-  Future<Map<String, dynamic>> sendVoiceCommand(String text) async {
+  /// [provider] : moteur IA à utiliser (claude | chatgpt | deepseek).
+  /// Si null, le backend applique son moteur par défaut (AI_PROVIDER).
+  Future<Map<String, dynamic>> sendVoiceCommand(String text, {String? provider}) async {
     final response = await http.post(
       Uri.parse('${ApiConfig.baseUrl}/ai/voice-command'),
       headers: _headers,
       body: jsonEncode({
         'text': text,
+        if (provider != null) 'provider': provider,
       }),
     );
 
@@ -344,6 +347,22 @@ class ApiService {
       return data;
     } else {
       throw Exception(data['error'] ?? 'Erreur lors du traitement de la commande');
+    }
+  }
+
+  /// Liste des moteurs IA proposés par le backend (avec leur disponibilité)
+  Future<Map<String, dynamic>> getAiProviders() async {
+    final response = await http.get(
+      Uri.parse('${ApiConfig.baseUrl}/ai/providers'),
+      headers: _headers,
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      return data;
+    } else {
+      throw Exception(data['error'] ?? 'Erreur lors de la récupération des moteurs IA');
     }
   }
 
