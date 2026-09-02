@@ -1,0 +1,4 @@
+# Fichiers régénérés par l'outillage Flutter avec des fins de ligne LF :
+# on les stocke et on les extrait en LF pour qu'ils cessent d'apparaître
+# modifiés (et de bloquer les checkouts) sur Windows.
+*.cmake text eol=lf
