@@ -1,5 +1,6 @@
 // lib/screens/voice_command_screen.dart
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/voice_service.dart';
 import '../services/api_service.dart';
 
@@ -22,6 +23,17 @@ class _VoiceCommandScreenState extends State<VoiceCommandScreen>
   bool _hasResult = false;
   bool _isSuccess = false;
 
+  // Moteurs IA proposés par le backend (seuls les moteurs configurés sont listés)
+  List<Map<String, dynamic>> _providers = [];
+  String? _selectedProvider;
+
+  static const _providerPrefsKey = 'ai_provider';
+  static const _providerLabels = {
+    'claude': 'Claude',
+    'chatgpt': 'ChatGPT',
+    'deepseek': 'DeepSeek',
+  };
+
   late AnimationController _animationController;
 
   @override
@@ -32,10 +44,53 @@ class _VoiceCommandScreenState extends State<VoiceCommandScreen>
       duration: const Duration(milliseconds: 1500),
     )..repeat();
     _initializeVoice();
+    _loadProviders();
   }
 
   Future<void> _initializeVoice() async {
     await _voiceService.initialize();
+  }
+
+  Future<void> _loadProviders() async {
+    try {
+      await _apiService.loadToken();
+      final result = await _apiService.getAiProviders();
+
+      final available = (result['providers'] as List)
+          .cast<Map<String, dynamic>>()
+          .where((p) => p['available'] == true)
+          .toList();
+
+      // Restaurer le dernier choix s'il est toujours disponible
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_providerPrefsKey);
+      final names = available.map((p) => p['name']).toList();
+
+      String? selected;
+      if (saved != null && names.contains(saved)) {
+        selected = saved;
+      } else if (available.isNotEmpty) {
+        selected = available.firstWhere(
+          (p) => p['isDefault'] == true,
+          orElse: () => available.first,
+        )['name'];
+      }
+
+      if (mounted) {
+        setState(() {
+          _providers = available;
+          _selectedProvider = selected;
+        });
+      }
+    } catch (_) {
+      // Sans liste, le backend applique son moteur par défaut : pas bloquant
+    }
+  }
+
+  Future<void> _selectProvider(String name) async {
+    setState(() => _selectedProvider = name);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_providerPrefsKey, name);
   }
 
   @override
@@ -83,9 +138,12 @@ class _VoiceCommandScreenState extends State<VoiceCommandScreen>
     });
 
     try {
-      // Envoyer à l'API
+      // Envoyer à l'API (avec le moteur IA choisi)
       await _apiService.loadToken();
-      final result = await _apiService.sendVoiceCommand(text);
+      final result = await _apiService.sendVoiceCommand(
+        text,
+        provider: _selectedProvider,
+      );
 
       setState(() {
         _isProcessing = false;
@@ -151,7 +209,51 @@ class _VoiceCommandScreenState extends State<VoiceCommandScreen>
               ),
             ),
             
-            const SizedBox(height: 40),
+            // Sélecteur de moteur IA (affiché seulement s'il y a un vrai choix)
+            if (_providers.length > 1) ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Icon(Icons.smart_toy, size: 18, color: Colors.grey[600]),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Moteur IA :',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8,
+                      children: _providers.map((p) {
+                        final name = p['name'] as String;
+                        final isSelected = name == _selectedProvider;
+                        return ChoiceChip(
+                          label: Text(
+                            _providerLabels[name] ?? name,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isSelected ? Colors.white : Colors.grey[800],
+                            ),
+                          ),
+                          selected: isSelected,
+                          selectedColor: Colors.deepPurple,
+                          visualDensity: VisualDensity.compact,
+                          onSelected: _isProcessing
+                              ? null
+                              : (_) => _selectProvider(name),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ] else
+              const SizedBox(height: 40),
 
             // Bouton micro
             GestureDetector(
